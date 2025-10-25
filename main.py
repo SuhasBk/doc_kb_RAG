@@ -1,17 +1,20 @@
 import os
+from dotenv import load_dotenv
 from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_ollama.embeddings import OllamaEmbeddings
+from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 from langchain_chroma import Chroma
-from langchain_ollama.chat_models import ChatOllama
 from langchain.chains import create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.chains.combine_documents.stuff import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate
+
+# Load environment variables from .env file (for GOOGLE_API_KEY)
+load_dotenv(dotenv_path='../.env')
 
 PDF_FOLDER_PATH = "./docs_to_analyze"
 CHROMA_DB_PATH = "./chroma_db_store"
-LLM_MODEL = "phi3"
-EMBEDDING_MODEL = "nomic-embed-text"
+LLM_MODEL = "gemini-2.5-flash"
+EMBEDDING_MODEL = "models/gemini-embedding-001"
 
 # --- RAG Core Functions ---
 
@@ -57,7 +60,7 @@ def load_and_index():
 
     # 3. Create Embeddings and Vector Store
     print(f"Initializing Ollama Embeddings with model: {EMBEDDING_MODEL}")
-    embeddings = OllamaEmbeddings(model=EMBEDDING_MODEL)
+    embeddings = GoogleGenerativeAIEmbeddings(model=EMBEDDING_MODEL)
 
     print(f"Creating and persisting ChromaDB at: {CHROMA_DB_PATH}")
     # Chroma.from_documents converts the text chunks into vectors and saves them.
@@ -124,13 +127,14 @@ def query_rag(llm, vectorstore: Chroma, query: str):
         print("\n--- NO SOURCES CITED ---")
 
 if __name__ == "__main__":
-    llm = ChatOllama(model=LLM_MODEL)
-    # response = llm.invoke ("hey whats up")
-    # print(response.text)
-
     # If documents change, you may need to delete the './chroma_db_store' folder and re-run.
     vectorstore = load_and_index()
+
     if vectorstore:
+        llm = ChatGoogleGenerativeAI(model=LLM_MODEL, temperature=0.2)
+        # response = llm.invoke ("hey whats up")
+        # print(response.text)
+
         user_question = "What are the key methods used in the most recent paper?"
         query_rag(llm, vectorstore, user_question)
 
